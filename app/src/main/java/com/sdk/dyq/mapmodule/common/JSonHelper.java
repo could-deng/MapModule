@@ -35,6 +35,7 @@ public class JSonHelper {
             }
             FileInputStream fileInputStream = new FileInputStream(file);
             JsonReader reader = new JsonReader(new InputStreamReader(fileInputStream, "UTF-8"));
+            new JsonReader(new InputStreamReader())
             reader.beginObject();
             while (reader.hasNext()) {
                 String name = reader.nextName();
