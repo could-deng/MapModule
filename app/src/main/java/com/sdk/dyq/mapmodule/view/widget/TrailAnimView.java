@@ -158,8 +158,8 @@ public class TrailAnimView extends View {
             @Override
             public void onClick(View view) {
                 mStage = 0;
-                if(getAnimListener()!=null){
-                    getAnimListener().OnTrailAnimEnd();
+                if(animListener!=null){
+                    animListener.OnTrailAnimEnd();
                 }
                 stopAnimation();
             }
@@ -225,10 +225,6 @@ public class TrailAnimView extends View {
 
     private void createIconAnim(int paramInt) {
 
-    }
-
-    public OnTrailAnimListener getAnimListener() {
-        return animListener;
     }
 
     public void setAnimListener(OnTrailAnimListener animListener) {

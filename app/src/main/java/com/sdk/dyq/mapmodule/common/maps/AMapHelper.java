@@ -890,6 +890,7 @@ public class AMapHelper {
      * @param show 是否显示轨迹,true:显示,false:不显示
      */
     public void showTrail(boolean show) {
+        Log.i("TT","showTrail"+(show?"true":"false"));
         if (aMap != null) {
             if (show) {
                 if (startMarker != null) {
