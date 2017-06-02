@@ -25,13 +25,15 @@
             android:value="bb46f580a7bfa6c8c328ec8468a994a3">
         </meta-data>
         <activity android:name=".view.activity.MapTrailActivity">
+
+        </activity>
+        <activity android:name=".view.activity.MapAnimActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-        <activity android:name=".view.activity.MapAnimActivity"/>
+            </activity>
         <activity android:name=".view.activity.MapBaseActivity"/>
     </application>
 

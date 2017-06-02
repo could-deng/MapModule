@@ -1,7 +1,11 @@
 package com.sdk.dyq.mapmodule.view.widget;
 
+import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.DashPathEffect;
+import android.graphics.Path;
+import android.graphics.PathMeasure;
 import android.graphics.Point;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -50,10 +54,18 @@ public class TrailAnimView extends View {
     private Point mStartPoint;
     private Point mEndPoint;
 
-    private int mProgress;//当前进度
-
     private Canvas mCacheCanvas;
     private Bitmap mCacheBitmap;//缓冲位图,性能优化
+
+//    private int mProgress;//当前进度
+
+
+
+    private float mLength;//轨迹线长度
+    private Path mPath;//轨迹路径
+    private PathMeasure mPathMeasure;
+    private Matrix mPathMatrix;
+    private float mPhase;//轨迹动画进度
 
 
     /**
@@ -112,7 +124,7 @@ public class TrailAnimView extends View {
             @Override
             public void onAnimationUpdate(ValueAnimator valueAnimator) {
                 float scale = (float) valueAnimator.getAnimatedValue();
-                if(mStage == 3){//开始
+                if(mStage == 3){//开始标识
                     if(mIconMatrix!=null){
                         mIconMatrix.reset();
                         if(bitmapStart!=null){
@@ -128,12 +140,13 @@ public class TrailAnimView extends View {
                         }else{
                             mStage = 1;
                             if(mIconAnim!=null) {
+                                mIconAnim.setStartDelay(0);
                                 mIconAnim.start();
                             }
                         }
                     }
                 }
-                else if(mStage == 1){
+                else if(mStage == 1){//结束标识
                     if(mIconMatrix!=null){
                         mIconMatrix.reset();
                         if(bitmapEnd!=null){
@@ -169,34 +182,39 @@ public class TrailAnimView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
-        if(mStage == 3){//开始画起始图标
-            if(mStartPoint!=null && mIconMatrix!=null) {
-                mIconMatrix.postTranslate(mStartPoint.x,mStartPoint.y);
-                canvas.drawBitmap(bitmapStart, mIconMatrix, null);
-            }
-        }else if(mStage == 2){//画轨迹
-            if(mCacheBitmap!=null){
-                canvas.drawBitmap(mCacheBitmap,0,0,paint);
-            }
-            if(bitmapLight!=null){
-                canvas.drawBitmap(bitmapLight,mColorPoints.get(mProgress).x-bitmapLight.getWidth()/2,
-                        mColorPoints.get(mProgress).y-bitmapLight.getHeight()/2,paint);
-            }
-
-        }else if(mStage == 1){//画终止点图标
-            if(mCacheBitmap!=null){
-                canvas.drawBitmap(mCacheBitmap,0,0,paint);
-            }
-            if(bitmapEnd!=null && mIconMatrix!=null){
-                mIconMatrix.postTranslate(mEndPoint.x,mEndPoint.y);
-                canvas.drawBitmap(bitmapEnd,mIconMatrix,null);
-            }
-
-        }else if(mStage == 0){
-            if (mCacheBitmap != null) {
-                canvas.drawBitmap(mCacheBitmap, 0, 0, paint);
-            }
-            startAlphaOut();
+        switch (mStage){
+            case 3://开始画起始图标
+                if(mStartPoint!=null && mIconMatrix!=null) {
+                    mIconMatrix.postTranslate(mStartPoint.x,mStartPoint.y);
+                    canvas.drawBitmap(bitmapStart, mIconMatrix, null);
+                }
+                break;
+            case 2://画轨迹
+                if(mCacheBitmap!=null){
+                    canvas.drawBitmap(mCacheBitmap,0,0,paint);
+                }
+                if(bitmapLight!=null){
+                    mPathMatrix.postTranslate(-bitmapLight.getWidth()/2,-bitmapLight.getHeight()/2);
+                    canvas.drawBitmap(bitmapLight,mPathMatrix,paint);
+//                    canvas.drawBitmap(bitmapLight,mColorPoints.get(mProgress).x-bitmapLight.getWidth()/2,
+//                            mColorPoints.get(mProgress).y-bitmapLight.getHeight()/2,paint);
+                }
+                break;
+            case 1://画终止点图标
+                if(mCacheBitmap!=null){
+                    canvas.drawBitmap(mCacheBitmap,0,0,paint);
+                }
+                if(bitmapEnd!=null && mIconMatrix!=null){
+                    mIconMatrix.postTranslate(mEndPoint.x,mEndPoint.y);
+                    canvas.drawBitmap(bitmapEnd,mIconMatrix,null);
+                }
+                break;
+            case 0:
+                if (mCacheBitmap != null) {
+                    canvas.drawBitmap(mCacheBitmap, 0, 0, paint);
+                }
+                startAlphaOut();
+                break;
         }
         invalidate();
     }
@@ -237,6 +255,7 @@ public class TrailAnimView extends View {
     public void startAnimation() {
         if (mIconAnim != null) {
             mStage = 3;
+            mIconAnim.setStartDelay(200);
             mIconAnim.start();
             Log.i("TT", "TrainAnimView setColorPoints mIconAnim start!");
         }
@@ -301,6 +320,34 @@ public class TrailAnimView extends View {
     //region =========================== 开放的接口 ===========================
 
     /**
+     * 计算轨迹动画时长
+     */
+    private int getLineAnimDuration() {
+        int duration = 6000;
+        if (mColorPoints != null && mColorPoints.size() > 1) {
+            Point point1;
+            Point point2;
+            int x;
+            int y;
+            int length = mColorPoints.size();
+            int total = 0;
+            for (int i = 1; i < length; i++) {
+                point1 = mColorPoints.get(i - 1);
+                point2 = mColorPoints.get(i);
+                x = Math.abs(point2.x - point1.x);
+                y = Math.abs(point2.y - point1.y);
+                total += x > y ? x : y;
+            }
+            if (total < 4320) {//6*60*12
+                return duration;
+            } else {
+                duration = total * 100 / 72;//* 1000 / 720
+            }
+        }
+        return duration;
+    }
+
+    /**
      * 设置要绘制的轨迹点
      */
     public void setColorPoints(List<Point> colorPoints) {
@@ -318,7 +365,7 @@ public class TrailAnimView extends View {
                 mEndPoint.y -= bitmapEnd.getHeight();
             }
         }
-        mProgress = 0;
+//        mProgress = 0;
 
         if(colorPoints.size()>0){
             //创建缓冲位图
@@ -328,33 +375,27 @@ public class TrailAnimView extends View {
             }
 
             //创建轨迹动画参数
-            mLineAnim = ValueAnimator.ofInt(0,colorPoints.size());
-            int duration = colorPoints.size();
-            if(duration<3000){
-                duration = 3000;
-            }else if(duration>6000){
-                duration = 6000;
-            }
+
+//            mLineAnim = ValueAnimator.ofInt(0,colorPoints.size());
+//            int duration = colorPoints.size();
+//            if(duration<3000){
+//                duration = 3000;
+//            }else if(duration>6000){
+//                duration = 6000;
+//            }
+            int duration = getLineAnimDuration();
+            setPath();
+            mLineAnim = ObjectAnimator.ofFloat(this,"phase",1.0f,0.0f);
             mLineAnim.setDuration(duration);
             mLineAnim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
-                    int progress = (int) animation.getAnimatedValue();
-                    if (mColorPoints == null || progress == mColorPoints.size()) {
+                    float progress = (float) animation.getAnimatedValue();
+                    if(mColorPoints == null || progress == 0.0f){
                         mStage = 1;
-                        if (mIconAnim != null) {
+                        if(mIconAnim!=null){
+                            mIconAnim.setStartDelay(0);
                             mIconAnim.start();
-                        }
-                    }else{
-                        if (progress < mColorPoints.size() && mCacheCanvas != null) {
-                            for (int i = mProgress + 1; i <= progress; i++) {
-                                mCacheCanvas.drawLine(mColorPoints.get(i - 1).x, mColorPoints.get(i - 1).y,
-                                        mColorPoints.get(i).x, mColorPoints.get(i).y, paint);
-                            }
-                            if (bitmapStart != null && mStartPoint != null) {
-                                mCacheCanvas.drawBitmap(bitmapStart, mStartPoint.x, mStartPoint.y, paint);
-                            }
-                            mProgress = progress;
                         }
                     }
                     invalidate();
@@ -365,6 +406,42 @@ public class TrailAnimView extends View {
         Log.i("TT","TrainAnimView setColorPoints:"+colorPoints.size());
 
     }
+    public void setPath(){
+        mPath = new Path();
+        if(mColorPoints!=null && mColorPoints.size()>0){
+            Point point = mColorPoints.get(0);
+            mPath.moveTo(point.x,point.y);
+            for(int i = 1;i<mColorPoints.size();i++){
+                point = mColorPoints.get(i);
+                mPath.lineTo(point.x,point.y);
+            }
+        }
+        mPathMeasure = new PathMeasure(mPath,false);
+        mLength = mPathMeasure.getLength();
+        mPathMatrix = new Matrix();
+        mPhase = 0.0f;
+    }
+
+    /**
+     * 执行ObjectAnimator.ofFloat(this,"phase",1.0f,0.0f);时会进入该方法
+     * @param phase
+     */
+    public void setPhase(float phase){//动画属性
+        paint.setPathEffect(new DashPathEffect(new float[]{mLength,mLength},
+                Math.max(phase * mLength,mPhase)));
+        if(mPathMatrix !=null){
+            mPathMeasure.getMatrix((1.0f - phase) * mLength ,mPathMatrix,PathMeasure.POSITION_MATRIX_FLAG);
+        }
+        if(mCacheCanvas!=null){
+            mCacheCanvas.drawPath(mPath,paint);
+            if(bitmapStart!=null && mStartPoint!=null){
+                mCacheCanvas.drawBitmap(bitmapStart,mStartPoint.x,mStartPoint.y,paint);
+            }
+        }
+        mPhase = phase;
+        invalidate();
+    }
+
 
     //endregion =========================== 开放的接口 ===========================
 }

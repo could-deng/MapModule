@@ -3,6 +3,7 @@ package com.sdk.dyq.mapmodule.view.activity;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.os.PersistableBundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 
@@ -34,6 +35,10 @@ public class MapAnimActivity extends MapBaseActivity {
     private LinearLayout progress_trail;//加载进度框
     private TrailAnimView trail_anim;//绘制轨迹的动画控件
     private List<Point> pointWithColors;//将TrailInfo轨迹点集合转化为具备颜色的集合点
+
+
+    private boolean cameraLocated;//地图摄像机是否已完成初次定位
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -106,6 +111,7 @@ public class MapAnimActivity extends MapBaseActivity {
             }
             if(trail_anim != null){
                 trail_anim.stopAnimation();
+                trail_anim = null;
             }
             if (progress_trail != null) {
                 progress_trail.setVisibility(View.GONE);
@@ -129,25 +135,28 @@ public class MapAnimActivity extends MapBaseActivity {
                 if (mapManager == null)
                     return;
 
-                getMapManager().setAnimTrailOfMap(mTrailInfoList, mapWidth, mapHeight, new AMap.CancelableCallback() {
+                getMapManager().setAnimTrailOfMap(mTrailInfoList, mapWidth, mapHeight, new AMapHelper.MapCameraChangeFinish() {
                     @Override
                     public void onFinish() {
-                        if(progress_trail!=null){
+                        if (cameraLocated)
+                            return;
+                        cameraLocated = true;
+                        Log.i("TT", "AMapHelper.MapCameraChangeFinish onFinish..");
+                        if (trail_anim != null)
                             progress_trail.setVisibility(View.GONE);
-                        }
                         pointWithColors = mapManager.convertTrailPoint(mTrailInfoList);
-                        if(trail_anim!=null){
+                        if(trail_anim!=null && pointWithColors!=null){
                             trail_anim.setColorPoints(pointWithColors);
                             trail_anim.startAnimation();
                         }
                     }
 
-                    @Override
-                    public void onCancel() {
-                        if(progress_trail!=null){
-                            progress_trail.setVisibility(View.GONE);
-                        }
-                    }
+//                    @Override
+//                    public void onCancel() {
+//                        if(progress_trail!=null){
+//                            progress_trail.setVisibility(View.GONE);
+//                        }
+//                    }
                 });
             }
         });

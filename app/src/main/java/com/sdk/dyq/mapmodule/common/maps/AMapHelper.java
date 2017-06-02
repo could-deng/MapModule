@@ -79,6 +79,16 @@ public class AMapHelper {
     private Marker startMarker;//开始标识
     private Marker endMarker;//结束标识
 
+    /**
+     * 地图摄像机视角更新结束事件监听
+     * */
+    public interface MapCameraChangeFinish{
+        /**
+         * 地图摄像机视角更新结束事件
+         * */
+        void onFinish();
+    }
+
     private AMapLocationManager.OnAMapLocationChangeListener locationChangeListener = new AMapLocationManager.OnAMapLocationChangeListener() {
 
         @Override
@@ -238,7 +248,7 @@ public class AMapHelper {
         colorPause = 0xFF808080;
 
         iTrailLineWidth = (int) context.getResources().getDimension(
-                R.dimen.fitmix_line_width);
+                R.dimen.line_width);
         colorCenter = 0xFF99CC33;
         colorRadius = 0x20000000;
 
@@ -700,7 +710,7 @@ public class AMapHelper {
         if(option == null){
             option = new PolylineOptions();
             option.zIndex(5.0f);
-            option.width(iTrailLineWidth);
+            option.width(iTrailLineWidth/2);
             option.setDottedLine(false);//画实线
         }
         int color = 0xFF00FF00;//纯绿;
@@ -776,10 +786,10 @@ public class AMapHelper {
      * @param mapHeight
      * @param callback
      */
-    public void setAnimTrailOfMap(List<TrailInfo> list, int mapWidth, int mapHeight,AMap.CancelableCallback callback){
+    public void setAnimTrailOfMap(List<TrailInfo> list, int mapWidth, int mapHeight, final MapCameraChangeFinish callback){
         if ((list == null) || (list.size() <= 1) || aMap == null) {
             if(callback!=null){
-                callback.onCancel();
+                callback.onFinish();
             }
             return;
         }
@@ -806,7 +816,21 @@ public class AMapHelper {
                 LatLngBounds bounds = boundsBuilder.build();
                 int padding = (int) (mapHeight * 0.1f);
                 //移动摄像头
-                getAMap().animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, mapWidth, mapHeight, padding), 1000, callback);
+//                getAMap().animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, mapWidth, mapHeight, padding), 1000, callback);
+                getAMap().moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, mapWidth, mapHeight, padding));
+                getAMap().setOnCameraChangeListener(new AMap.OnCameraChangeListener() {
+                    @Override
+                    public void onCameraChange(CameraPosition cameraPosition) {
+                        //不处理
+                    }
+
+                    @Override
+                    public void onCameraChangeFinish(CameraPosition cameraPosition) {
+                        if(callback != null){
+                            callback.onFinish();
+                        }
+                    }
+                });
             }
         }
 
@@ -819,7 +843,7 @@ public class AMapHelper {
         BitmapDescriptor bitmapStart = BitmapDescriptorFactory
                 .fromResource(R.drawable.run_start);
         MarkerOptions markStart = new MarkerOptions();
-        markStart.icon(bitmapStart).position(positionStart);
+        markStart.icon(bitmapStart).position(positionStart).setFlat(false);
         if(getAMap() != null) {
             startMarker = getAMap().addMarker(markStart);
         }
@@ -840,7 +864,7 @@ public class AMapHelper {
         if(option == null){
             option = new PolylineOptions();
             option.zIndex(5.0f);
-            option.width(iTrailLineWidth);
+            option.width(iTrailLineWidth/2);
             option.setDottedLine(false);//画实线
             polyLines = new ArrayList<>(list.size());
         }
@@ -862,7 +886,7 @@ public class AMapHelper {
         //6.获取地图显示区域失败回调通知
         if (!bSuccess) {
             if (callback != null) {
-                callback.onCancel();
+                callback.onFinish();
             }
         }
     }
